@@ -63,6 +63,26 @@ enum EToken {
   tEOF,                             ///< end of file
   tIOError,                         ///< I/O error
   tUndefined,                       ///< undefined
+
+  tChar,                            ///< a character
+  tString,                          ///< a string
+  
+  tIdent,                           ///< a identifier
+  tNumber,                          ///< a decimal number
+  tKeyword,                         ///< a keyword
+  tBoolean,                         ///< "true" or "false"
+  tBasetype,                        ///< "boolean", "char" or "integer"
+
+  tFactOp,                          ///< '*', '/' or "&&"
+  tTermOp,                          ///< '+', '-' or "||"
+  
+  tComment,                         ///< comment
+
+  tComma,                           ///< a comma
+  tColon,                           ///< a colon
+  tNot,                             ///< a exclamation mark, '!'
+  tSqLBrak,                         ///< '['
+  tSqRBrak,                         ///< ']'  
 };
 
 

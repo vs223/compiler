@@ -42,7 +42,21 @@
 #include <cstdio>
 
 #include "scanner.h"
+#define trace printf
+
 using namespace std;
+
+
+
+/*
+ *
+ * Local function
+ *
+ *
+ */
+bool isNum(char);
+bool isLetter(char);
+
 
 //------------------------------------------------------------------------------
 // token names
@@ -64,6 +78,25 @@ char ETokenName[][TOKEN_STRLEN] = {
   "tEOF",                           ///< end of file
   "tIOError",                       ///< I/O error
   "tUndefined",                     ///< undefined
+  "tChar",                          ///< a character
+  "tString",                        ///< a string
+
+  "tIdent",                         ///< a identifier
+  "tNumber",                        ///< a decimal number
+  "tKeyword",                       ///< a keyword
+  "tBoolean",                       ///< "true" or "false"
+  "tBasetype",                      ///< "boolean", "char" or "integer"
+
+  "tFactOp",                        ///< '*', '/' or "&&"
+  "tTermOp",                        ///< '+', '-' or "||"
+
+  "tComment",                       ///< comment
+
+  "tComma",                         ///< a comma
+  "tColon",                         ///< a colon
+  "tNot",                           ///< a exclamation mark, '!'
+  "tSqLBrak",                       ///< '['
+  "tSqRBrak",                       ///< ']'
 };
 
 
@@ -86,6 +119,25 @@ char ETokenStr[][TOKEN_STRLEN] = {
   "tEOF",                           ///< end of file
   "tIOError",                       ///< I/O error
   "tUndefined (%s)",                ///< undefined
+  "tChar (%s)",                     ///< a character
+  "tString (%s)",                   ///< a string
+
+  "tIdent (%s)",                    ///< a identifier
+  "tNumber (%s)",                   ///< a decimal number
+  "tKeyword (%s)",                  ///< a keyword
+  "tBoolean (%s)",                  ///< "true" or "false"
+  "tBasetype (%s)",                 ///< "boolean", "char" or "integer"
+
+  "tFactOp (%s)",                   ///< '*', '/' or "&&"
+  "tTermOp (%s)",                   ///< '+', '-' or "||"
+
+  "tComment (%s)",                  ///< comment
+
+  "tComma",                         ///< a comma
+  "tColon",                         ///< a colon
+  "tNot",                           ///< a exclamation mark, '!'
+  "tSqLBrak",                       ///< '['
+  "tSqRBrak",                       ///< ']'
 };
 
 
@@ -94,6 +146,23 @@ char ETokenStr[][TOKEN_STRLEN] = {
 //
 pair<const char*, EToken> Keywords[] =
 {
+    {"true", tBoolean},
+    {"false", tBoolean},
+    {"boolean" , tBasetype},
+    {"char", tBasetype},
+    {"integer", tBasetype},
+    {"module", tKeyword},
+    {"begin", tKeyword},
+    {"end", tKeyword},
+    {"if", tKeyword},
+    {"then", tKeyword},
+    {"else", tKeyword},
+    {"while", tKeyword},
+    {"do", tKeyword},
+    {"return", tKeyword},
+    {"var", tKeyword},
+    {"procedure",tKeyword},
+    {"function", tKeyword},
 };
 
 
@@ -290,19 +359,62 @@ CToken* CScanner::Scan()
       if (_in->peek() == '=') {
         tokval += GetChar();
         token = tAssign;
+        break;
       }
+      token=tColon;
       break;
-
+      
+    case '|':
+      /*
+       * In snupl/1, op '|' undefined
+       */
+      if(_in->peek() != '|' ){ 
+          // to do
+          break;
+      }
+      else{
+          tokval += GetChar();
+      }
     case '+':
     case '-':
-      token = tPlusMinus;
+      token = tTermOp;
       break;
 
+    
     case '*':
-    case '/':
-      token = tMulDiv;
+      token = tFactOp;
       break;
-
+    case '/':
+      if(_in->peek() == '/'){
+          tokval += GetChar();
+          token = tComment;
+          while((_in->peek()!='\n')&& (_in->peek()!= '\0')){
+              tokval+= GetChar();
+          }
+          break;
+      }
+      else {
+          token = tFactOp;
+      }
+      break;
+    case '&':
+        if(_in->peek() == '&'){
+            tokval += GetChar();
+            token = tFactOp;
+        }
+        break;
+    case '>':
+        if(_in->peek() == '='){
+            tokval += GetChar();
+            token = tRelOp;
+            break;
+        }
+    case '<':
+        if(_in->peek() == '='){
+            tokval += GetChar();
+            token = tRelOp;
+            break;
+        }
     case '=':
     case '#':
       token = tRelOp;
@@ -315,7 +427,9 @@ CToken* CScanner::Scan()
     case '.':
       token = tDot;
       break;
-
+    case ',':
+      token = tComma;
+      break;
     case '(':
       token = tLBrak;
       break;
@@ -323,13 +437,104 @@ CToken* CScanner::Scan()
     case ')':
       token = tRBrak;
       break;
+    case '[':
+      token = tSqLBrak;
+      break;
+    case ']':
+      token = tSqRBrak;
+      break;
+    case '!':
+      token = tNot;
+      break;
+    case '\'':
+      //token = tQuotMark;
+      if(((0<_in->peek()) && (_in->peek()<0x7f))){
+          char lab = _in->peek();
+          tokval+=GetChar();
+          if(_in->peek() == '\''){
+              tokval+=GetChar();
+              if(lab == '\\')   // case '\'
+                  break;
+              token = tChar;
+          }
+          else if(lab == '\\' ){
+              switch (_in->peek()){
+                  case 'n':
+                  case 't':
+                  case '\"':
+                  case '\'':
+                  case '\\':
+                  case '0':
+                    tokval += GetChar();
+                    if(_in->peek() == '\''){
+                        tokval+=GetChar();
+                        token = tChar;
+                    }
+                    break;
+                  default:
+                    break;
+              }
+          }
+          break;
+      }
+      break;
 
+    case '\"':
+      //token = tDQuotMark;
+      char lab;
+      bool loop_flag;
+      loop_flag = true;
+      while(( (lab = _in->peek()) > 0) &&  ( lab < 0x7f )){
+          if(lab == '\"'){
+              tokval += GetChar();
+              token = tString;
+              break;
+          }
+          if(lab == '\\'){
+              tokval += GetChar();
+              switch (_in->peek()){
+                  case 'n':
+                  case 't':
+                  case '\"':
+                  case '\'':
+                  case '\\':
+                  case '0':
+                    tokval += GetChar();
+                    break;
+                  default:
+                    loop_flag = false;
+                    break; //not allowed
+              }
+          }
+          else{
+              tokval += GetChar();
+          }
+          if(!loop_flag){
+              break;
+          } 
+      }
+      break;
     default:
-      if (('0' <= c) && (c <= '9')) {
-        token = tDigit;
-      } else
-      if (('a' <= c) && (c <= 'z')) {
-        token = tLetter;
+      if (isLetter(c)) {
+          char look_ahead_buffer = _in->peek();
+        token = tIdent;
+        while(isLetter(look_ahead_buffer) || isNum(look_ahead_buffer)){
+            tokval += GetChar();
+            look_ahead_buffer = _in->peek();
+        }
+
+        map<string, EToken>::iterator it = keywords.find(tokval);
+        if(it != keywords.end()){
+            token = (*it).second;
+        }
+
+      } else if (isNum(c)) {
+        token = tNumber;
+        char look_ahead_buffer = _in->peek();
+        while(isNum(look_ahead_buffer)){
+             tokval += GetChar();
+             look_ahead_buffer = _in->peek();
+        }
       } else {
         tokval = "invalid character '";
         tokval += c;
@@ -340,6 +545,15 @@ CToken* CScanner::Scan()
 
   return NewToken(token, tokval);
 }
+
+bool isNum(char c){
+    return (('0' <= c) && (c <= '9'));
+}
+
+bool isLetter(char c){
+    return ((('a' <= c) && (c <= 'z'))||(('A'<=c)&&( c<= 'Z')))||(c=='_');
+}
+
 
 char CScanner::GetChar()
 {
