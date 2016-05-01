@@ -1,0 +1,41 @@
+digraph AST {
+  graph [fontname="Times New Roman",fontsize=10];
+  node  [fontname="Courier New",fontsize=10];
+  edge  [fontname="Times New Roman",fontsize=10];
+
+  node0 [label="m array02",shape=box];
+  node9 [label=":=",shape=box];
+  node4 [label="A[]",shape=ellipse];
+  node5 [label="2",shape=ellipse];
+  node4-> node5;
+  node6 [label="3",shape=ellipse];
+  node4-> node6;
+  node9->node4;
+  node7 [label="call ReadInt",shape=box];
+  node9->node7;
+  node0 -> node9 [style=dotted];
+  node16 [label=":=",shape=box];
+  node10 [label="A[]",shape=ellipse];
+  node11 [label="0",shape=ellipse];
+  node10-> node11;
+  node12 [label="1",shape=ellipse];
+  node10-> node12;
+  node16->node10;
+  node13 [label="A[]",shape=ellipse];
+  node14 [label="2",shape=ellipse];
+  node13-> node14;
+  node15 [label="3",shape=ellipse];
+  node13-> node15;
+  node16->node13;
+  node9 -> node16 [style=dotted];
+  node17 [label="call WriteInt",shape=box];
+  node18 [label="A[]",shape=ellipse];
+  node19 [label="0",shape=ellipse];
+  node18-> node19;
+  node20 [label="1",shape=ellipse];
+  node18-> node20;
+  node17->node18;
+  node16 -> node17 [style=dotted];
+  node22 [label="call WriteLn",shape=box];
+  node17 -> node22 [style=dotted];
+}

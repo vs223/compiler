@@ -12,7 +12,6 @@ function
 var
 integer
 boolean
-char
 begin
 end
 if
@@ -49,8 +48,6 @@ false
 .
 (
 )
-[
-]
 
 // identifiers
 a
@@ -69,17 +66,3 @@ _____t
 2147483648
 000000000000000000
 999999999999999999
-
-// boolean
-true
-false
-
-// characters
-'a'
-'\n'
-'\t'
-
-// strings
-"hello, world!"
-"this\tis\ta\ttab!"
-"a"

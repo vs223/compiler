@@ -1,0 +1,47 @@
+digraph AST {
+  graph [fontname="Times New Roman",fontsize=10];
+  node  [fontname="Courier New",fontsize=10];
+  edge  [fontname="Times New Roman",fontsize=10];
+
+  node0 [label="m string02",shape=box];
+  node2 [label="call WriteStr",shape=box];
+  node3 [label="\"Enter your age: \"",shape=ellipse];
+  node2->node3;
+  node0 -> node2 [style=dotted];
+  node9 [label=":=",shape=box];
+  node6 [label="age",shape=ellipse];
+  node9->node6;
+  node7 [label="call ReadInt",shape=box];
+  node9->node7;
+  node2 -> node9 [style=dotted];
+  node10 [label="call WriteStr",shape=box];
+  node11 [label="\"Enter the year: \"",shape=ellipse];
+  node10->node11;
+  node9 -> node10 [style=dotted];
+  node17 [label=":=",shape=box];
+  node14 [label="year",shape=ellipse];
+  node17->node14;
+  node15 [label="call ReadInt",shape=box];
+  node17->node15;
+  node10 -> node17 [style=dotted];
+  node18 [label="call WriteStr",shape=box];
+  node19 [label="\"You will be 100 years old in the year \"",shape=ellipse];
+  node18->node19;
+  node17 -> node18 [style=dotted];
+  node21 [label="call WriteInt",shape=box];
+  node28 [label="sub",shape=box];
+  node25 [label="add",shape=box];
+  node23 [label="year",shape=ellipse];
+  node25->node23;
+  node24 [label="100",shape=ellipse];
+  node25->node24;
+  node28->node25;
+  node27 [label="age",shape=ellipse];
+  node28->node27;
+  node21->node28;
+  node18 -> node21 [style=dotted];
+  node30 [label="call WriteStr",shape=box];
+  node31 [label="\".\\n\"",shape=ellipse];
+  node30->node31;
+  node21 -> node30 [style=dotted];
+}
