@@ -4,8 +4,7 @@
 /// @section changelog Change Log
 /// 2012/09/14 Bernhard Egger created
 /// 2013/03/07 Bernhard Egger adapted to SnuPL/0
-/// 2014/09/10 Bernhard Egger assignment 1: scans SnuPL/-1
-/// 2016/03/13 Bernhard Egger assignment 1: adapted to modified SnuPL/-1 syntax
+/// 2016/03/11 Bernhard Egger adapted to SnuPL/1
 ///
 /// @section license_section License
 /// Copyright (c) 2012-2016, Bernhard Egger
@@ -33,8 +32,8 @@
 /// DAMAGE.
 //------------------------------------------------------------------------------
 
-#ifndef __SnuPL1_SCANNER_H__
-#define __SnuPL1_SCANNER_H__
+#ifndef __SnuPL_SCANNER_H__
+#define __SnuPL_SCANNER_H__
 
 #include <istream>
 #include <ostream>
@@ -44,45 +43,52 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-/// @brief SnuPL/-1 token type
+/// @brief SnuPL/0 token type
 ///
 /// each member of this enumeration represents a token in SnuPL/0
 ///
 enum EToken {
-  tDigit=0,                         ///< a digit
-  tLetter,                          ///< a letter
+  tIdent=0,                         ///< ident
+  tNumber,                          ///< number
+  tBoolConst,                       ///< boolean constant
+  tCharConst,                       ///< character constant
+  tString,                          ///< string constant
   tPlusMinus,                       ///< '+' or '-'
   tMulDiv,                          ///< '*' or '/'
+  tOr,                              ///< '||'
+  tAnd,                             ///< '&&'
+  tNot,                             ///< '!'
   tRelOp,                           ///< relational operator
   tAssign,                          ///< assignment operator
+  tComma,                           ///< a comma
   tSemicolon,                       ///< a semicolon
+  tColon,                           ///< a colon
   tDot,                             ///< a dot
+  tLParens,                         ///< a left parenthesis
+  tRParens,                         ///< a right parenthesis
   tLBrak,                           ///< a left bracket
   tRBrak,                           ///< a right bracket
 
+  tModule,                          ///< 'module'
+  tProcedure,                       ///< 'procedure'
+  tFunction,                        ///< 'function'
+  tVarDecl,                         ///< 'var'
+  tInteger,                         ///< 'integer'
+  tBoolean,                         ///< 'boolean'
+  tChar,                            ///< 'char'
+  tBegin,                           ///< 'begin'
+  tEnd,                             ///< 'end'
+  tIf,                              ///< 'if'
+  tThen,                            ///< 'then'
+  tElse,                            ///< 'else'
+  tWhile,                           ///< 'while'
+  tDo,                              ///< 'do'
+  tReturn,                          ///< 'return'
+
+  tComment,                         ///< comment ('// .... \n')
   tEOF,                             ///< end of file
   tIOError,                         ///< I/O error
   tUndefined,                       ///< undefined
-
-  tChar,                            ///< a character
-  tString,                          ///< a string
-  
-  tIdent,                           ///< a identifier
-  tNumber,                          ///< a decimal number
-  tKeyword,                         ///< a keyword
-  tBoolean,                         ///< "true" or "false"
-  tBasetype,                        ///< "boolean", "char" or "integer"
-
-  tFactOp,                          ///< '*', '/' or "&&"
-  tTermOp,                          ///< '+', '-' or "||"
-  
-  tComment,                         ///< comment
-
-  tComma,                           ///< a comma
-  tColon,                           ///< a colon
-  tNot,                             ///< a exclamation mark, '!'
-  tSqLBrak,                         ///< '['
-  tSqRBrak,                         ///< ']'  
 };
 
 
@@ -160,6 +166,21 @@ class CToken {
 
     /// @}
 
+    /// @name string escape/unescaping (static methods)
+    /// @{
+
+    /// @brief escape special characters in a string
+    ///
+    /// @param text string
+    /// @retval escaped string
+    static string escape(const string text);
+
+    /// @brief unescape special characters in a string
+    ///
+    /// @param text escapted string
+    /// @retval unescaped string
+    static string unescape(const string text);
+    /// @}
 
     /// @brief print the token to an output stream
     ///
@@ -171,13 +192,6 @@ class CToken {
     string _value;                  ///< token value
     int    _line;                   ///< input stream position (line)
     int    _char;                   ///< input stream position (character pos)
-
-
-    /// @brief escape special characters in a string
-    ///
-    /// @param text string
-    /// @retval escaped string
-    string escape(const string text);
 };
 
 /// @name CToken output operators
@@ -301,6 +315,35 @@ class CScanner {
     /// @retval false character is not white space
     bool IsWhite(char c) const;
 
+    /// @brief check if a character is an alphabetic character (a-z, A-Z)
+    ///
+    /// @param c character
+    /// @retval true character is alphabetic
+    /// @retval false character is not alphabetic
+    bool IsAlpha(char c) const;
+
+    /// @brief check if a character is an numeric character (0-9)
+    ///
+    /// @param c character
+    /// @retval true character is numeric
+    /// @retval false character is not numeric
+    bool IsNum(char c) const;
+
+    /// @brief check if a character is a valid ID character
+    ///
+    /// @param c character
+    /// @retval true character is valid as an ID character
+    /// @retval false character is not valid in an ID
+    bool IsIDChar(char c) const;
+
+    /// @brief parse a character or string constant
+    ///
+    /// @param &tval token value
+    /// @param type  token type (tCharConst / tString)
+    /// @retval token type if the character/string has been successfully parsed
+    /// @retval tUndefined otherwise (tval set accordingly)
+    EToken GetCharConst(string &tval, EToken type);
+
     /// @}
 
 
@@ -317,4 +360,4 @@ class CScanner {
 };
 
 
-#endif // __SnuPL0_SCANNER_H__
+#endif // __SnuPL_SCANNER_H__

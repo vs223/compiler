@@ -4,8 +4,8 @@
 /// @section changelog Change Log
 /// 2012/09/14 Bernhard Egger created
 /// 2013/03/07 Bernhard Egger adapted to SnuPL/0
-/// 2014/09/10 Bernhard Egger assignment 1: scans SnuPL/-1
-/// 2016/03/13 Bernhard Egger assignment 1: adapted to modified SnuPL/-1 syntax
+/// 2016/03/11 Bernhard Egger adapted to SnuPL/1
+/// 2016/03/13 Bernhard Egger assignment 1: scans SnuPL/-1
 ///
 /// @section license_section License
 /// Copyright (c) 2012-2016, Bernhard Egger
@@ -42,21 +42,7 @@
 #include <cstdio>
 
 #include "scanner.h"
-#define trace printf
-
 using namespace std;
-
-
-
-/*
- *
- * Local function
- *
- *
- */
-bool isNum(char);
-bool isLetter(char);
-
 
 //------------------------------------------------------------------------------
 // token names
@@ -64,39 +50,19 @@ bool isLetter(char);
 #define TOKEN_STRLEN 16
 
 char ETokenName[][TOKEN_STRLEN] = {
-  "tDigit",                         ///< a digit
-  "tLetter",                        ///< a letter
+  "tNumber",                        ///< number
   "tPlusMinus",                     ///< '+' or '-'
   "tMulDiv",                        ///< '*' or '/'
   "tRelOp",                         ///< relational operator
   "tAssign",                        ///< assignment operator
   "tSemicolon",                     ///< a semicolon
   "tDot",                           ///< a dot
-  "tLBrak",                         ///< a left bracket
-  "tRBrak",                         ///< a right bracket
+  "tLParens",                       ///< a left parenthesis
+  "tRParens",                       ///< a right parenthesis
 
   "tEOF",                           ///< end of file
   "tIOError",                       ///< I/O error
   "tUndefined",                     ///< undefined
-  "tChar",                          ///< a character
-  "tString",                        ///< a string
-
-  "tIdent",                         ///< a identifier
-  "tNumber",                        ///< a decimal number
-  "tKeyword",                       ///< a keyword
-  "tBoolean",                       ///< "true" or "false"
-  "tBasetype",                      ///< "boolean", "char" or "integer"
-
-  "tFactOp",                        ///< '*', '/' or "&&"
-  "tTermOp",                        ///< '+', '-' or "||"
-
-  "tComment",                       ///< comment
-
-  "tComma",                         ///< a comma
-  "tColon",                         ///< a colon
-  "tNot",                           ///< a exclamation mark, '!'
-  "tSqLBrak",                       ///< '['
-  "tSqRBrak",                       ///< ']'
 };
 
 
@@ -105,39 +71,19 @@ char ETokenName[][TOKEN_STRLEN] = {
 //
 
 char ETokenStr[][TOKEN_STRLEN] = {
-  "tDigit (%s)",                    ///< a digit
-  "tLetter (%s)",                   ///< a letter
+  "tNumber (%s)",                   ///< number
   "tPlusMinus (%s)",                ///< '+' or '-'
   "tMulDiv (%s)",                   ///< '*' or '/'
   "tRelOp (%s)",                    ///< relational operator
   "tAssign",                        ///< assignment operator
   "tSemicolon",                     ///< a semicolon
   "tDot",                           ///< a dot
-  "tLBrak",                         ///< a left bracket
-  "tRBrak",                         ///< a right bracket
+  "tLParens",                       ///< a left parenthesis
+  "tRParens",                       ///< a right parenthesis
 
   "tEOF",                           ///< end of file
   "tIOError",                       ///< I/O error
   "tUndefined (%s)",                ///< undefined
-  "tChar (%s)",                     ///< a character
-  "tString (%s)",                   ///< a string
-
-  "tIdent (%s)",                    ///< a identifier
-  "tNumber (%s)",                   ///< a decimal number
-  "tKeyword (%s)",                  ///< a keyword
-  "tBoolean (%s)",                  ///< "true" or "false"
-  "tBasetype (%s)",                 ///< "boolean", "char" or "integer"
-
-  "tFactOp (%s)",                   ///< '*', '/' or "&&"
-  "tTermOp (%s)",                   ///< '+', '-' or "||"
-
-  "tComment (%s)",                  ///< comment
-
-  "tComma",                         ///< a comma
-  "tColon",                         ///< a colon
-  "tNot",                           ///< a exclamation mark, '!'
-  "tSqLBrak",                       ///< '['
-  "tSqRBrak",                       ///< ']'
 };
 
 
@@ -146,23 +92,6 @@ char ETokenStr[][TOKEN_STRLEN] = {
 //
 pair<const char*, EToken> Keywords[] =
 {
-    {"true", tBoolean},
-    {"false", tBoolean},
-    {"boolean" , tBasetype},
-    {"char", tBasetype},
-    {"integer", tBasetype},
-    {"module", tKeyword},
-    {"begin", tKeyword},
-    {"end", tKeyword},
-    {"if", tKeyword},
-    {"then", tKeyword},
-    {"else", tKeyword},
-    {"while", tKeyword},
-    {"do", tKeyword},
-    {"return", tKeyword},
-    {"var", tKeyword},
-    {"procedure",tKeyword},
-    {"function", tKeyword},
 };
 
 
@@ -236,6 +165,31 @@ string CToken::escape(const string text)
       case '\"': s += "\\\""; break;
       case '\\': s += "\\\\"; break;
       default :  s += *t;
+    }
+    t++;
+  }
+
+  return s;
+}
+
+string CToken::unescape(const string text)
+{
+  const char *t = text.c_str();
+  string s;
+
+  while (*t != '\0') {
+    if (*t == '\\') {
+      switch (*++t) {
+        case 'n': s += "\n";  break;
+        case 't': s += "\t";  break;
+        case '0': s += "\0";  break;
+        case '\'': s += "'";  break;
+        case '"': s += "\""; break;
+        case '\\': s += "\\"; break;
+        default :  s += '?';
+      }
+    } else {
+      s += *t;
     }
     t++;
   }
@@ -320,7 +274,7 @@ void CScanner::NextToken()
   _token = Scan();
 }
 
-void CScanner::RecordStreamPosition()
+void CScanner::RecordStreamPosition(void)
 {
   _saved_line = _line;
   _saved_char = _char;
@@ -359,62 +313,19 @@ CToken* CScanner::Scan()
       if (_in->peek() == '=') {
         tokval += GetChar();
         token = tAssign;
-        break;
       }
-      token=tColon;
-      break;
-      
-    case '|':
-      /*
-       * In snupl/1, op '|' undefined
-       */
-      if(_in->peek() != '|' ){ 
-          // to do
-          break;
-      }
-      else{
-          tokval += GetChar();
-      }
-    case '+':
-    case '-':
-      token = tTermOp;
       break;
 
-    
+    case '+':
+    case '-':
+      token = tPlusMinus;
+      break;
+
     case '*':
-      token = tFactOp;
-      break;
     case '/':
-      if(_in->peek() == '/'){
-          tokval += GetChar();
-          token = tComment;
-          while((_in->peek()!='\n')&& (_in->peek()!= '\0')){
-              tokval+= GetChar();
-          }
-          break;
-      }
-      else {
-          token = tFactOp;
-      }
+      token = tMulDiv;
       break;
-    case '&':
-        if(_in->peek() == '&'){
-            tokval += GetChar();
-            token = tFactOp;
-        }
-        break;
-    case '>':
-        if(_in->peek() == '='){
-            tokval += GetChar();
-            token = tRelOp;
-            break;
-        }
-    case '<':
-        if(_in->peek() == '='){
-            tokval += GetChar();
-            token = tRelOp;
-            break;
-        }
+
     case '=':
     case '#':
       token = tRelOp;
@@ -427,133 +338,30 @@ CToken* CScanner::Scan()
     case '.':
       token = tDot;
       break;
-    case ',':
-      token = tComma;
-      break;
+
     case '(':
-      token = tLBrak;
+      token = tLParens;
       break;
 
     case ')':
-      token = tRBrak;
-      break;
-    case '[':
-      token = tSqLBrak;
-      break;
-    case ']':
-      token = tSqRBrak;
-      break;
-    case '!':
-      token = tNot;
-      break;
-    case '\'':
-      //token = tQuotMark;
-      if(((0<_in->peek()) && (_in->peek()<0x7f))){
-          char lab = _in->peek();
-          tokval+=GetChar();
-          if(_in->peek() == '\''){
-              tokval+=GetChar();
-              if(lab == '\\')   // case '\'
-                  break;
-              token = tChar;
-          }
-          else if(lab == '\\' ){
-              switch (_in->peek()){
-                  case 'n':
-                  case 't':
-                  case '\"':
-                  case '\'':
-                  case '\\':
-                  case '0':
-                    tokval += GetChar();
-                    if(_in->peek() == '\''){
-                        tokval+=GetChar();
-                        token = tChar;
-                    }
-                    break;
-                  default:
-                    break;
-              }
-          }
-          break;
-      }
+      token = tRParens;
       break;
 
-    case '\"':
-      //token = tDQuotMark;
-      char lab;
-      bool loop_flag;
-      loop_flag = true;
-      while(( (lab = _in->peek()) > 0) &&  ( lab < 0x7f )){
-          if(lab == '\"'){
-              tokval += GetChar();
-              token = tString;
-              break;
-          }
-          if(lab == '\\'){
-              tokval += GetChar();
-              switch (_in->peek()){
-                  case 'n':
-                  case 't':
-                  case '\"':
-                  case '\'':
-                  case '\\':
-                  case '0':
-                    tokval += GetChar();
-                    break;
-                  default:
-                    loop_flag = false;
-                    break; //not allowed
-              }
-          }
-          else{
-              tokval += GetChar();
-          }
-          if(!loop_flag){
-              break;
-          } 
-      }
-      break;
     default:
-      if (isLetter(c)) {
-          char look_ahead_buffer = _in->peek();
-        token = tIdent;
-        while(isLetter(look_ahead_buffer) || isNum(look_ahead_buffer)){
-            tokval += GetChar();
-            look_ahead_buffer = _in->peek();
-        }
-
-        map<string, EToken>::iterator it = keywords.find(tokval);
-        if(it != keywords.end()){
-            token = (*it).second;
-        }
-
-      } else if (isNum(c)) {
+      if (IsNum(c)) {
+        while (IsNum(_in->peek())) tokval += GetChar();
         token = tNumber;
-        char look_ahead_buffer = _in->peek();
-        while(isNum(look_ahead_buffer)){
-             tokval += GetChar();
-             look_ahead_buffer = _in->peek();
-        }
       } else {
         tokval = "invalid character '";
         tokval += c;
         tokval += "'";
       }
       break;
+
   }
 
   return NewToken(token, tokval);
 }
-
-bool isNum(char c){
-    return (('0' <= c) && (c <= '9'));
-}
-
-bool isLetter(char c){
-    return ((('a' <= c) && (c <= 'z'))||(('A'<=c)&&( c<= 'Z')))||(c=='_');
-}
-
 
 char CScanner::GetChar()
 {
@@ -571,5 +379,20 @@ string CScanner::GetChar(int n)
 
 bool CScanner::IsWhite(char c) const
 {
-  return ((c == ' ') || (c == '\n'));
+  return ((c == ' ') || (c == '\t') || (c == '\n'));
+}
+
+bool CScanner::IsAlpha(char c) const
+{
+  return ((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (c == '_'));
+}
+
+bool CScanner::IsNum(char c) const
+{
+  return (('0' <= c) && (c <= '9'));
+}
+
+bool CScanner::IsIDChar(char c) const
+{
+  return (IsAlpha(c) || IsNum(c));
 }
