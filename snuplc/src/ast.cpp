@@ -808,7 +808,26 @@ bool CAstBinaryOp::TypeCheck(CToken *t, string *msg) const
 
 const CType* CAstBinaryOp::GetType(void) const
 {
-  return CTypeManager::Get()->GetInt();
+  //if Operation.type() == relOp + && + || then Booltype
+  //else if type == add, sub, mul, div then IntType (there's no float type)
+  //else NULL // undefined operation
+  switch(GetOperation()){
+    case opEqual:
+    case opLessThan:
+    case opBiggerThan:
+    case opNotEqual:
+    case opLessEqual:
+    case opBiggerEqual:
+    case opAnd:
+    case opOr:
+      return  CTypeManager::Get()->GetBool();
+    case opAdd:
+    case opSub:
+    case opMul:
+    case opDiv:
+      return CTypeManager::Get()->GetInt();
+  }
+  return NULL;
 }
 
 ostream& CAstBinaryOp::print(ostream &out, int indent) const
@@ -953,6 +972,17 @@ bool CAstSpecialOp::TypeCheck(CToken *t, string *msg) const
 
 const CType* CAstSpecialOp::GetType(void) const
 {
+  switch(GetOperation()){
+    case opAddress:
+      return CTypeManager::Get()->GetPointer(_operand->GetType());
+    case opDeref:
+      {
+        const CPointerType* ptrType = dynamic_cast<const CPointerType*>(_operand->GetType());
+        return  ptrType->GetBaseType();
+      }
+    case opCast:
+      return _type;
+  }
   return NULL;
 }
 
