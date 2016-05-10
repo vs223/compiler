@@ -46,7 +46,6 @@
 #include "parser.h"
 
 #define PeekType() _scanner->Peek().GetType()
-//#define trace() printf("\nhello\n")
 #define trace()
 using namespace std;
 
@@ -120,23 +119,13 @@ bool CParser::Consume(EToken type, CToken *token)
 
     if (token != NULL) *token = t;
 
-    //cout << t.GetName() + "\t\t : " + t.GetValue() <<endl ;
     return t.GetType() == type;
 }
-/*
-   CSymbol *CParser::findInSymTab( CSymtab *s, CToken t , EScope scope = sGlobal )
-   {
-   CSymbol * retVal = NULL;
-   retVal = s->GetSymbolTable->FindSymbol(t.GetName() ,scope);
-   return retVal;
-   }*/
-
 
 void CParser::InitSymbolTable(CSymtab *s)
 {
     CTypeManager *tm = CTypeManager::Get();
 
-    // TODO: add predefined functions here
     CSymProc* symproc = new CSymProc("DIM", tm->GetInt());
     symproc->AddParam(new CSymParam(0, "arg0", tm->GetPointer(tm->GetNull())));
     symproc->AddParam(new CSymParam(1, "arg1", tm->GetInt()));
@@ -205,6 +194,9 @@ CAstProcedure *CParser::subroutineDecl(CAstScope *s)
 {
     //
     //subroutineDecl ::=(procedureDecl | functionDecl) subroutineBody ident ";".
+    //for some technical problem, this absorbed procedureDecl and functionDecl
+    //procedureDecl ::= "procedure" ident [ formalParam ] ";".
+    //functionDecl ::= "function" ident [ formalParam ] ":" type ";".
     //
     CToken t, t2;
     EToken tt = PeekType();
@@ -263,44 +255,6 @@ CAstProcedure *CParser::subroutineDecl(CAstScope *s)
 
     return proScope;
 }
-/*
-   CSymProc * CParser::procedureDecl (CAstScope *s, CToken &t,  CAstScope &paraScope){
-//
-//procedureDecl ::= "procedure" ident [ formalParam ] ";".
-//for convenience, move [formalParam] ";" to subroutineDecl
-//
-CSymtab *symtab = s->GetSymbolTable();
-Consume(tProcedure);
-Consume(tIdent, &t);
-if(symtab->FindSymbol( t.GetValue()) != NULL)
-SetError(t, "Duplcated definition.");
-if(PeekType() != tSemicolon) //next token is first of follow or next token is not follow of this
-{
-paraScope = new paraScope(t, t.value);
-formalParam(paraScope);
-}
-Consume(tSemicolon);
-return new CSymProc(t.GetName(), CTypeManager::Get()->GetNull());
-}
-
-CSymProc * CParser::functionDecl (CAstScope *s, CToken &t, CAstScope &paraScope){
-//
-//functionDecl ::= "function" ident [ formalParam ] ":" type ";".
-////for convenience, move [formalParam] ";" to subroutineDecl
-//
-CSymtab *symtab = s->GetSymbolTable();
-Consume(tFunction);
-Consume(tIdent, &t);
-if(symtab->FindSymbol( t.GetValue()) != NULL)
-SetError(t, "Duplcated definition.");
-if(PeekType() != tColon) //next token is first of follow or next token is not follow of this
-formalParam(s);
-Consume(tColon);
-CAstType *_retType = type(s);
-Consume(tSemicolon);
-return new CSymProc(t.GetName(), _retType->GetType());
-}
-*/
 
 void CParser::formalParam(CAstScope *s, CSymProc *p){
     //
@@ -318,7 +272,6 @@ CAstStatement *CParser::subroutineBody(CAstScope *s ){
     //
     varDeclaration(s);
     Consume(tBegin);
-    //trace();
     CAstStatement *stsq = statSequence(s);
     Consume(tEnd);
     return stsq;
@@ -356,13 +309,14 @@ if(PeekType() == tVarDecl){
                 rear_flag = 1;
                 break;
             default:
+                //unexpected token, probably dying after this mehtod
                 break;
         }
 
 
-        if(rear_flag == 0){
+        if(rear_flag == 0)
             break;
-        }
+        
 
         varDecl(s);
         Consume(tSemicolon);
@@ -381,7 +335,7 @@ void CParser::varDeclSequence(CAstScope *s, CSymProc *p)
     varDecl(s, p);
     while(PeekType() == tSemicolon ){   
         Consume(tSemicolon);
-        varDecl(s);
+        varDecl(s, p);
     }
 }
 
@@ -630,9 +584,7 @@ CAstStatWhile * CParser::whileStatement(CAstScope *s)
     Consume(tLParens);
 
     CAstExpression *condition = expression(s);
-    //trace();
     Consume(tRParens);
-    //trace();
 
     Consume(tDo);
     CAstStatement *whileBody = statSequence(s);
@@ -802,7 +754,7 @@ CAstExpression* CParser::factor(CAstScope *s)
         case tNot:
             Consume(tNot, &t);
             n = factor(s);
-            n = new CAstUnaryOp(t, opNeg, n); 
+            n = new CAstUnaryOp(t, opNot, n); 
             break;
             //factor ::= qualident | subroutineCall
         case tIdent:
@@ -845,7 +797,7 @@ CAstDesignator* CParser::qualident(CAstScope *s, CToken *_t)
     else
         t = *_t;
 
-    if( (s->GetSymbolTable()->FindSymbol(t.GetValue())) == 0)
+    if( (s->GetSymbolTable()->FindSymbol(t.GetValue())) == NULL)
         SetError(t, "a token is not in symbol table.");
 
     EToken tt = _scanner->Peek().GetType();

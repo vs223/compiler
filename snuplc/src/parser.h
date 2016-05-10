@@ -87,14 +87,6 @@ class CParser {
         /// @retval false otherwise
         bool Consume(EToken type, CToken *token=NULL);
 
-        /// @brief find a symbol which has same name with given token in given symbol table on given scope
-        /// @param symbol table
-        /// @param token to be compared with the symbol in symbol table
-        /// @param scope type 
-        /// @retval a symbol if the symbol which has the same name with the token is in symbol table
-        /// @retval NULL if not
-        CSymbol *findInSymTab( CSymtab *s, CToken t , EScope scope = sGlobal);
-
 
         /// @brief initialize symbol table @a s with predefined procedures and
         ///        global variables
