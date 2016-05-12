@@ -428,7 +428,21 @@ class CAstStatement : public CAstNode {
     /// @retval true if no type error has been found
     /// @retval false otherwise
     virtual bool TypeCheck(CToken *t, string *msg) const = 0;
+    
+    /// @}
+    
+   
+    /// @name type management
+    /// @{
 
+    /// @brief perform sequence type checking
+    /// @param t (out, optional) type error at token t
+    /// @param msg (out, optional) type error message
+    /// @retval true if no type error has been found
+    /// @retval false otherwise
+
+    bool TypeSeqCheck(CToken *t, string *msg);
+   
     /// @}
 
 

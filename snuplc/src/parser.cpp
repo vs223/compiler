@@ -504,7 +504,6 @@ CAstStatAssign* CParser::assignment(CAstScope *s, CToken *_t )
   Consume(tAssign, &t);
 
   CAstExpression *rhs = expression(s);
-  //trace();
   return new CAstStatAssign(t, lhs, rhs);
 }
 
@@ -825,6 +824,7 @@ CAstDesignator* CParser::qualident(CAstScope *s, CToken *_t)
   }
 
   if(dim!=0){
+    tarray->IndicesComplete();
     return tarray;
   }
   else{

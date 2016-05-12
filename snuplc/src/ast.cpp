@@ -50,7 +50,7 @@ using namespace std;
 int CAstNode::_global_id = 0;
 
 CAstNode::CAstNode(CToken token)
-  : _token(token), _addr(NULL)
+: _token(token), _addr(NULL)
 {
   _id = _global_id++;
 }
@@ -113,7 +113,7 @@ ostream& operator<<(ostream &out, const CAstNode *t)
 // CAstScope
 //
 CAstScope::CAstScope(CToken t, const string name, CAstScope *parent)
-  : CAstNode(t), _name(name), _symtab(NULL), _parent(parent), _statseq(NULL),
+: CAstNode(t), _name(name), _symtab(NULL), _parent(parent), _statseq(NULL),
     _cb(NULL)
 {
   if (_parent != NULL) _parent->AddChild(this);
@@ -165,9 +165,13 @@ CAstStatement* CAstScope::GetStatementSequence(void) const
 
 bool CAstScope::TypeCheck(CToken *t, string *msg) const
 {
-  bool result = true;
-
-  return result;
+  if(GetStatementSequence()!=NULL && !GetStatementSequence()->TypeSeqCheck(t,msg))
+    return false;
+  for(int i = 0; i < GetNumChildren(); i++){
+    if(!GetChild(i)->TypeCheck(t,msg))
+      return false;
+  }
+  return true;
 }
 
 ostream& CAstScope::print(ostream &out, int indent) const
@@ -253,7 +257,7 @@ void CAstScope::AddChild(CAstScope *child)
 // CAstModule
 //
 CAstModule::CAstModule(CToken t, const string name)
-  : CAstScope(t, name, NULL)
+: CAstScope(t, name, NULL)
 {
   SetSymbolTable(new CSymtab());
 }
@@ -275,7 +279,7 @@ string CAstModule::dotAttr(void) const
 //
 CAstProcedure::CAstProcedure(CToken t, const string name,
                              CAstScope *parent, CSymProc *symbol)
-  : CAstScope(t, name, parent), _symbol(symbol)
+: CAstScope(t, name, parent), _symbol(symbol)
 {
   assert(GetParent() != NULL);
   SetSymbolTable(new CSymtab(GetParent()->GetSymbolTable()));
@@ -288,7 +292,7 @@ CSymProc* CAstProcedure::GetSymbol(void) const
 }
 
 void CAstProcedure::SetSymbol(CSymProc* symbol){
-     _symbol=symbol;
+  _symbol=symbol;
 }
 
 
@@ -312,7 +316,7 @@ string CAstProcedure::dotAttr(void) const
 // CAstType
 //
 CAstType::CAstType(CToken t, const CType *type)
-  : CAstNode(t), _type(type)
+: CAstNode(t), _type(type)
 {
   assert(type != NULL);
 }
@@ -335,7 +339,7 @@ ostream& CAstType::print(ostream &out, int indent) const
 // CAstStatement
 //
 CAstStatement::CAstStatement(CToken token)
-  : CAstNode(token), _next(NULL)
+: CAstNode(token), _next(NULL)
 {
 }
 
@@ -344,6 +348,14 @@ CAstStatement::~CAstStatement(void)
   delete _next;
 }
 
+bool CAstStatement::TypeSeqCheck(CToken *t, string *msg) 
+{
+  if(!TypeCheck(t,msg))
+    return false;
+  if(GetNext()==NULL)
+    return true;
+  return GetNext()->TypeCheck(t,msg);  
+}
 void CAstStatement::SetNext(CAstStatement *next)
 {
   _next = next;
@@ -365,7 +377,7 @@ CTacAddr* CAstStatement::ToTac(CCodeBlock *cb, CTacLabel *next)
 //
 CAstStatAssign::CAstStatAssign(CToken t,
                                CAstDesignator *lhs, CAstExpression *rhs)
-  : CAstStatement(t), _lhs(lhs), _rhs(rhs)
+: CAstStatement(t), _lhs(lhs), _rhs(rhs)
 {
   assert(lhs != NULL);
   assert(rhs != NULL);
@@ -383,7 +395,10 @@ CAstExpression* CAstStatAssign::GetRHS(void) const
 
 bool CAstStatAssign::TypeCheck(CToken *t, string *msg) const
 {
-  return true;
+  return GetLHS()->TypeCheck(t,msg) &&
+      GetRHS()-> TypeCheck(t,msg) &&
+      GetLHS()->GetType()->IsScalar() &&
+      GetLHS()->GetType() -> Match ( GetRHS()->GetType());
 }
 
 const CType* CAstStatAssign::GetType(void) const
@@ -435,7 +450,7 @@ CTacAddr* CAstStatAssign::ToTac(CCodeBlock *cb, CTacLabel *next)
 // CAstStatCall
 //
 CAstStatCall::CAstStatCall(CToken t, CAstFunctionCall *call)
-  : CAstStatement(t), _call(call)
+: CAstStatement(t), _call(call)
 {
   assert(call != NULL);
 }
@@ -482,7 +497,7 @@ CTacAddr* CAstStatCall::ToTac(CCodeBlock *cb, CTacLabel *next)
 // CAstStatReturn
 //
 CAstStatReturn::CAstStatReturn(CToken t, CAstScope *scope, CAstExpression *expr)
-  : CAstStatement(t), _scope(scope), _expr(expr)
+: CAstStatement(t), _scope(scope), _expr(expr)
 {
   assert(scope != NULL);
 }
@@ -499,7 +514,9 @@ CAstExpression* CAstStatReturn::GetExpression(void) const
 
 bool CAstStatReturn::TypeCheck(CToken *t, string *msg) const
 {
-  return true;
+  if (GetExpression() != NULL && !GetExpression()->TypeCheck(t,msg))
+    return false;
+  return  GetScope()->GetType()->Match(GetType());
 }
 
 const CType* CAstStatReturn::GetType(void) const
@@ -559,7 +576,7 @@ CTacAddr* CAstStatReturn::ToTac(CCodeBlock *cb, CTacLabel *next)
 //
 CAstStatIf::CAstStatIf(CToken t, CAstExpression *cond,
                        CAstStatement *ifBody, CAstStatement *elseBody)
-  : CAstStatement(t), _cond(cond), _ifBody(ifBody), _elseBody(elseBody)
+: CAstStatement(t), _cond(cond), _ifBody(ifBody), _elseBody(elseBody)
 {
   assert(cond != NULL);
 }
@@ -581,6 +598,15 @@ CAstStatement* CAstStatIf::GetElseBody(void) const
 
 bool CAstStatIf::TypeCheck(CToken *t, string *msg) const
 {
+
+  if(!GetCondition()->TypeCheck(t,msg))
+    return false;
+  if(!GetCondition()->GetType()->Match(CTypeManager::Get()->GetBool()))
+    return false;
+  if(GetIfBody()!= NULL && !(GetIfBody()->TypeSeqCheck(t,msg)))
+    return false;
+  if(GetElseBody()!=NULL && (GetElseBody()->TypeSeqCheck(t,msg)))
+    return false;
   return true;
 }
 
@@ -664,7 +690,7 @@ CTacAddr* CAstStatIf::ToTac(CCodeBlock *cb, CTacLabel *next)
 //
 CAstStatWhile::CAstStatWhile(CToken t,
                              CAstExpression *cond, CAstStatement *body)
-  : CAstStatement(t), _cond(cond), _body(body)
+: CAstStatement(t), _cond(cond), _body(body)
 {
   assert(cond != NULL);
 }
@@ -681,6 +707,12 @@ CAstStatement* CAstStatWhile::GetBody(void) const
 
 bool CAstStatWhile::TypeCheck(CToken *t, string *msg) const
 {
+  if (!GetCondition()->TypeCheck(t,msg))
+    return false;
+  if( !GetCondition()->GetType()->Match(CTypeManager::Get()->GetBool()))
+    return false;
+  if( GetBody()!=NULL && !GetBody()->TypeSeqCheck(t,msg))
+    return false;
   return true;
 }
 
@@ -742,7 +774,7 @@ CTacAddr* CAstStatWhile::ToTac(CCodeBlock *cb, CTacLabel *next)
 // CAstExpression
 //
 CAstExpression::CAstExpression(CToken t)
-  : CAstNode(t)
+: CAstNode(t)
 {
 }
 
@@ -762,7 +794,7 @@ CTacAddr* CAstExpression::ToTac(CCodeBlock *cb,
 // CAstOperation
 //
 CAstOperation::CAstOperation(CToken t, EOperation oper)
-  : CAstExpression(t), _oper(oper)
+: CAstExpression(t), _oper(oper)
 {
 }
 
@@ -777,7 +809,7 @@ EOperation CAstOperation::GetOperation(void) const
 //
 CAstBinaryOp::CAstBinaryOp(CToken t, EOperation oper,
                            CAstExpression *l,CAstExpression *r)
-  : CAstOperation(t, oper), _left(l), _right(r)
+: CAstOperation(t, oper), _left(l), _right(r)
 {
   // these are the only binary operation we support for now
   assert((oper == opAdd)        || (oper == opSub)         ||
@@ -803,7 +835,35 @@ CAstExpression* CAstBinaryOp::GetRight(void) const
 
 bool CAstBinaryOp::TypeCheck(CToken *t, string *msg) const
 {
-  return true;
+  CTypeManager *tm = CTypeManager::Get();
+
+  // lhs's & rhs's always same
+  // not support type conversion
+  if(!(GetLeft()->GetType()->Match(GetRight()->GetType())))
+    return false;
+
+  switch(GetOperation()){
+    case opEqual:
+    case opNotEqual:
+      // lhs's = rhs's
+      return true;
+    case opLessThan:
+    case opBiggerThan:
+    case opLessEqual:
+    case opBiggerEqual:
+      return (GetLeft()->GetType()->Match(tm->GetInt()))
+          ||(GetLeft()->GetType()->Match(tm->GetChar()));
+    case opAnd:
+    case opOr:
+      return (GetLeft()->GetType()->Match(tm->GetBool()));
+    case opAdd:
+    case opSub:
+    case opMul:
+    case opDiv:
+      return (GetLeft()->GetType()->Match(tm->GetInt()));
+  }
+
+  return false;
 }
 
 const CType* CAstBinaryOp::GetType(void) const
@@ -882,7 +942,7 @@ CTacAddr* CAstBinaryOp::ToTac(CCodeBlock *cb,
 // CAstUnaryOp
 //
 CAstUnaryOp::CAstUnaryOp(CToken t, EOperation oper, CAstExpression *e)
-  : CAstOperation(t, oper), _operand(e)
+: CAstOperation(t, oper), _operand(e)
 {
   assert((oper == opNeg) || (oper == opPos) || (oper == opNot));
   assert(e != NULL);
@@ -895,11 +955,23 @@ CAstExpression* CAstUnaryOp::GetOperand(void) const
 
 bool CAstUnaryOp::TypeCheck(CToken *t, string *msg) const
 {
-  return true;
+  if(!GetOperand()->TypeCheck(t,msg))
+    return false;
+  switch(GetOperation()){
+    case opNeg:
+    case opPos:
+      return (GetOperand()->GetType()->Match(CTypeManager::Get()->GetInt()));
+    case opNot:
+      return (GetOperand()->GetType()->Match(CTypeManager::Get()->GetBool()));
+  }
+  return false;
 }
 
 const CType* CAstUnaryOp::GetType(void) const
 {
+  if(GetOperation()==opNot){
+    return CTypeManager::Get()->GetBool();
+  }
   return CTypeManager::Get()->GetInt();
 }
 
@@ -952,7 +1024,7 @@ CTacAddr* CAstUnaryOp::ToTac(CCodeBlock *cb,
 //
 CAstSpecialOp::CAstSpecialOp(CToken t, EOperation oper, CAstExpression *e,
                              const CType *type)
-  : CAstOperation(t, oper), _operand(e), _type(type)
+: CAstOperation(t, oper), _operand(e), _type(type)
 {
   assert((oper == opAddress) || (oper == opDeref) || (oper = opCast));
   assert(e != NULL);
@@ -967,6 +1039,15 @@ CAstExpression* CAstSpecialOp::GetOperand(void) const
 
 bool CAstSpecialOp::TypeCheck(CToken *t, string *msg) const
 {
+  switch(GetOperation()){
+    case opAddress:
+      return (_operand->GetType()->IsArray());
+    case opDeref:
+      return (_operand->GetType()->IsPointer());
+    case opCast:
+      //not defined
+      return false;
+  }
   return false;
 }
 
@@ -1028,7 +1109,7 @@ CTacAddr* CAstSpecialOp::ToTac(CCodeBlock *cb)
 // CAstFunctionCall
 //
 CAstFunctionCall::CAstFunctionCall(CToken t, const CSymProc *symbol)
-  : CAstExpression(t), _symbol(symbol)
+: CAstExpression(t), _symbol(symbol)
 {
   assert(symbol != NULL);
 }
@@ -1056,6 +1137,16 @@ CAstExpression* CAstFunctionCall::GetArg(int index) const
 
 bool CAstFunctionCall::TypeCheck(CToken *t, string *msg) const
 {
+  //check # of parameters
+  if(GetSymbol()->GetNParams()!= GetNArgs())
+    return false;
+
+  for(int i = 0; i < GetNArgs(); i++){
+    if(!GetArg(i)->TypeCheck(t,msg))
+      return false;
+    if(!GetArg(i)->GetType()->Match(GetSymbol()->GetParam(i)->GetDataType()))
+      return false;
+  }
   return true;
 }
 
@@ -1116,7 +1207,7 @@ CTacAddr* CAstFunctionCall::ToTac(CCodeBlock *cb,
 // CAstOperand
 //
 CAstOperand::CAstOperand(CToken t)
-  : CAstExpression(t)
+: CAstExpression(t)
 {
 }
 
@@ -1125,7 +1216,7 @@ CAstOperand::CAstOperand(CToken t)
 // CAstDesignator
 //
 CAstDesignator::CAstDesignator(CToken t, const CSymbol *symbol)
-  : CAstOperand(t), _symbol(symbol)
+: CAstOperand(t), _symbol(symbol)
 {
   assert(symbol != NULL);
 }
@@ -1137,7 +1228,7 @@ const CSymbol* CAstDesignator::GetSymbol(void) const
 
 bool CAstDesignator::TypeCheck(CToken *t, string *msg) const
 {
-  return true;
+  return (GetType()!=NULL);
 }
 
 const CType* CAstDesignator::GetType(void) const
@@ -1190,7 +1281,7 @@ CTacAddr* CAstDesignator::ToTac(CCodeBlock *cb,
 // CAstArrayDesignator
 //
 CAstArrayDesignator::CAstArrayDesignator(CToken t, const CSymbol *symbol)
-  : CAstDesignator(t, symbol), _done(false), _offset(NULL)
+: CAstDesignator(t, symbol), _done(false), _offset(NULL)
 {
 }
 
@@ -1219,16 +1310,46 @@ CAstExpression* CAstArrayDesignator::GetIndex(int index) const
 
 bool CAstArrayDesignator::TypeCheck(CToken *t, string *msg) const
 {
-  bool result = true;
 
   assert(_done);
 
-  return result;
+  if(t!=NULL)
+    *t = GetToken();
+
+  if(msg!=NULL)
+    *msg = "here is CAstArrayDesignator TypeCheck";
+
+  const CType* retVal = _symbol->GetDataType();
+  //parameter case 
+  if(retVal -> IsPointer())
+    retVal = dynamic_cast<const CPointerType*>(retVal)->GetBaseType();
+  if(!retVal -> IsArray())
+    return false;
+
+  for(int i = 0 ; i < GetNIndices();i++){
+    if(!GetIndex(i)-> TypeCheck(t, msg))
+      return false;
+    if(!GetIndex(i)-> GetType()-> Match(CTypeManager::Get()->GetInt()))
+      return false;
+  }
+  return true;
 }
 
 const CType* CAstArrayDesignator::GetType(void) const
 {
-  return NULL;
+  const CType * retVal =  GetSymbol()->GetDataType();
+  //parameter case
+  if(retVal ->IsPointer())
+    retVal = dynamic_cast<const CPointerType*>(retVal)->GetBaseType();
+
+  //brak check
+  //because brak may be open, cannot use match
+  for(int i = 0 ; i < GetNIndices(); i++){
+    if(!retVal->IsArray())
+      return NULL;
+    retVal = dynamic_cast<const CArrayType*>(retVal)->GetInnerType();
+  }
+  return retVal;
 }
 
 ostream& CAstArrayDesignator::print(ostream &out, int indent) const
@@ -1284,7 +1405,7 @@ CTacAddr* CAstArrayDesignator::ToTac(CCodeBlock *cb,
 // CAstConstant
 //
 CAstConstant::CAstConstant(CToken t, const CType *type, long long value)
-  : CAstOperand(t), _type(type), _value(value)
+: CAstOperand(t), _type(type), _value(value)
 {
 }
 
@@ -1313,6 +1434,26 @@ string CAstConstant::GetValueStr(void) const
 
 bool CAstConstant::TypeCheck(CToken *t, string *msg) const
 {
+  if(t!=NULL)
+    *t = GetToken();
+  if(msg!=NULL)
+    *msg = "CAstConstant typeCheck()";
+  CTypeManager* tm = CTypeManager::Get();
+  if (GetType()->Match(tm->GetInt())) {
+    if(GetValue() < (int)0xffffffff || GetValue() > (int)0x7fffffff)  
+      return false;
+  }
+  else if (_type->Match(tm->GetChar())){
+    if(GetValue() < 0 || GetValue() > 0xff)
+      return false;
+  }
+  else if (GetType()->Match(tm->GetBool())){
+    if(GetValue() !=0 && GetValue() != 1)
+      return false;
+  }
+  else{
+    return false;
+  }
   return true;
 }
 
@@ -1348,7 +1489,7 @@ CTacAddr* CAstConstant::ToTac(CCodeBlock *cb)
 }
 
 CTacAddr* CAstConstant::ToTac(CCodeBlock *cb,
-                                CTacLabel *ltrue, CTacLabel *lfalse)
+                              CTacLabel *ltrue, CTacLabel *lfalse)
 {
   return NULL;
 }
@@ -1361,7 +1502,7 @@ int CAstStringConstant::_idx = 0;
 
 CAstStringConstant::CAstStringConstant(CToken t, const string value,
                                        CAstScope *s)
-  : CAstOperand(t)
+: CAstOperand(t)
 {
   CTypeManager *tm = CTypeManager::Get();
 
@@ -1394,7 +1535,7 @@ bool CAstStringConstant::TypeCheck(CToken *t, string *msg) const
 
 const CType* CAstStringConstant::GetType(void) const
 {
-  return NULL;
+  return _type;
 }
 
 ostream& CAstStringConstant::print(ostream &out, int indent) const
@@ -1426,7 +1567,7 @@ CTacAddr* CAstStringConstant::ToTac(CCodeBlock *cb)
 }
 
 CTacAddr* CAstStringConstant::ToTac(CCodeBlock *cb,
-                                CTacLabel *ltrue, CTacLabel *lfalse)
+                                    CTacLabel *ltrue, CTacLabel *lfalse)
 {
   return NULL;
 }
