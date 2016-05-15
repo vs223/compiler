@@ -119,7 +119,7 @@ bool CParser::Consume(EToken type, CToken *token)
   }
 
   if (token != NULL) *token = t;
-//  cout << t << endl;
+ // cout << t << endl;
   return t.GetType() == type;
 }
 
@@ -227,18 +227,8 @@ CAstProcedure *CParser::subroutineDecl(CAstScope *s)
     //type should not array or ptr
     if(_retType->GetType()->IsArray() || _retType->GetType()->IsPointer())
       SetError(t, "func type cannot be array or pointer.");
-
-
-    CSymProc *symfunc =  new CSymProc(t.GetValue(), _retType->GetType());
-    const CDataInitializer  * di = symproc->GetData();
-    symfunc->SetData(di);
-    /*  for(int i = 0; i < symproc->GetNParams();i++){
-        const CDataInitializer  * di = symproc->GetParam(i)->GetData();
-        CSymParam * symToAdd = new CSymParam(p->);
-        symfunc->AddParam(symToAdd);
-        }*/
-    symproc = symfunc;
-    proScope->SetSymbol(symproc);
+    symproc->SetDataType(_retType->GetType());
+    //proScope->SetSymbol(symproc);
   }
   Consume(tSemicolon);
 
@@ -376,6 +366,7 @@ void CParser::varDecl(CAstScope *s, CSymProc *p)
       SetError(t, "Duplicated definition.");
     }
     if(p!=NULL){
+      //parameter
       CSymParam *symToAdd = new CSymParam(p->GetNParams(), tokenBuf[i].GetValue(),_type);
       if (!(symtab->AddSymbol(symToAdd)))  
         SetError(t, "fail to add token to symboltable");           
@@ -383,10 +374,11 @@ void CParser::varDecl(CAstScope *s, CSymProc *p)
     }
     else{
       CSymbol *symbolToAdd = s->CreateVar(tokenBuf[i].GetValue(), _type);
-      while(_type->IsArray()){
-          if(dynamic_cast <const CArrayType *> (_type) ->GetNElem() == CArrayType::OPEN)
+      const CType *temp_type = _type;
+      while(temp_type->IsArray()){
+          if(dynamic_cast <const CArrayType *> (temp_type) ->GetNElem() == CArrayType::OPEN)
             SetError(t, "var doesn't have explicit dimension");
-          _type = dynamic_cast <const CArrayType *> (_type) -> GetInnerType();
+          temp_type = dynamic_cast <const CArrayType *> (temp_type) -> GetInnerType();
       }
       if(!symtab->AddSymbol(symbolToAdd))
         SetError(t, "fail to add token to symboltable");
@@ -721,7 +713,11 @@ CAstExpression* CParser::simpleexpr(CAstScope *s)
   n = term(s);
 
   if( tt == tPlusMinus){
-    n = new CAstUnaryOp(t, t.GetValue() == "+" ? opPos : opNeg, n);
+    if(t.GetValue() == "-" && n->GetType()->Compare(CTypeManager::Get()->GetInt())&&dynamic_cast<CAstConstant *>(n) !=NULL){
+      dynamic_cast<CAstConstant *>(n)->SetValue(-(dynamic_cast<CAstConstant*>(n)->GetValue()));
+    }
+    else
+      n = new CAstUnaryOp(t, t.GetValue() == "+" ? opPos : opNeg, n);
   }
 
   while (_scanner->Peek().GetType() == tPlusMinus || PeekType() == tOr)  {
@@ -839,10 +835,6 @@ CAstExpression* CParser::factor(CAstScope *s)
       SetError(_scanner->Peek(), "factor expected.");
       break;
   }
-  string msg;
-  if (n!=NULL && !n->TypeCheck(&t, &msg))
-    SetError(t, msg);
-
   return n;
 }
 

@@ -399,11 +399,11 @@ bool CAstStatAssign::TypeCheck(CToken *t, string *msg) const
 {
   *msg += "\n Assignment typecheck : ";
   if(!GetLHS()->TypeCheck(t,msg)){
-   *msg += "lhs typecheck";
-   return false;
+    *msg += "lhs typecheck";
+    return false;
   }
   if(!GetRHS()-> TypeCheck(t,msg)){
-   *msg += "rhs typecheck";
+    *msg += "rhs typecheck";
     return false;
   } 
   if(!GetLHS()->GetType()->IsScalar()){
@@ -1246,12 +1246,12 @@ bool CAstDesignator::TypeCheck(CToken *t, string *msg) const
 {
 
   if(GetType()==NULL){
-      if(t!=NULL)
-        *t =GetToken();
-      if(msg!=NULL){
-        *msg = "Designator fail : NULL";
-      }
-      return false;
+    if(t!=NULL)
+      *t =GetToken();
+    if(msg!=NULL){
+      *msg = "Designator fail : NULL";
+    }
+    return false;
   }
   return true;
 }
@@ -1348,12 +1348,15 @@ bool CAstArrayDesignator::TypeCheck(CToken *t, string *msg) const
   //parameter case 
   if(retVal -> IsPointer())
     retVal = dynamic_cast<const CPointerType*>(retVal)->GetBaseType();
-  if(!retVal -> IsArray()){
-    *msg = "Array typecheck  this is not array type!";
-    return false;
-  }
+
 
   for(int i = 0 ; i < GetNIndices();i++){
+
+    if(!retVal->IsArray()){
+      *msg = "Array typecheck  this is not array type!";
+      return false;
+    }
+
     if(!GetIndex(i)-> TypeCheck(t, msg)){
       *msg="array typecheck : index check error";
       return false;
@@ -1362,6 +1365,9 @@ bool CAstArrayDesignator::TypeCheck(CToken *t, string *msg) const
       *msg = "arraytype check : index's type is not int";
       return false;
     }
+    retVal = dynamic_cast<const CArrayType*>(retVal)->GetInnerType();
+
+
 
   }
   *msg = "Array type check success";
@@ -1374,9 +1380,6 @@ const CType* CAstArrayDesignator::GetType(void) const
   //parameter case
   if(retVal ->IsPointer())
     retVal = dynamic_cast<const CPointerType*>(retVal)->GetBaseType();
-
-  //brak check
-  //because brak may be open, cannot use match
   for(int i = 0 ; i < GetNIndices(); i++){
     if(!retVal->IsArray())
       return NULL;
@@ -1473,8 +1476,15 @@ bool CAstConstant::TypeCheck(CToken *t, string *msg) const
     *msg = "CAstConstant typeCheck()";
   CTypeManager* tm = CTypeManager::Get();
   if (GetType()->Match(tm->GetInt())) {
-    if(GetValue() < (int)0xffffffff || GetValue() > (int)0x7fffffff)  
+    if(GetValue() < (int)0x80000000){
+      *msg = "int value < int min";
       return false;
+    }
+    if( GetValue() > (int)0x7fffffff){
+      cout << GetValue() <<endl;
+      *msg = "int value > int max";  
+      return false;
+    }
   }
   else if (_type->Match(tm->GetChar())){
     if(GetValue() < 0 || GetValue() > 0xff)
