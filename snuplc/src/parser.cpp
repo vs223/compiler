@@ -46,7 +46,7 @@
 #include "parser.h"
 
 #define PeekType() _scanner->Peek().GetType()
-#define trace()
+#define trace printf
 using namespace std;
 
 //todo
@@ -119,7 +119,7 @@ bool CParser::Consume(EToken type, CToken *token)
   }
 
   if (token != NULL) *token = t;
-
+//  cout << t << endl;
   return t.GetType() == type;
 }
 
@@ -171,12 +171,14 @@ CAstModule* CParser::module(void)
   while(PeekType()!=tBegin){
     subroutineDecl(m);
   }
-  Consume(tBegin);
 
+
+  Consume(tBegin);
   CAstStatement *statseq = NULL;
   statseq = statSequence(m);
-
   Consume(tEnd);
+
+
   Consume(tIdent, &name2);
   if(name.GetValue()!= name2.GetValue()){
     SetError(name2, name.GetValue()+"!="+name2.GetValue());
@@ -222,6 +224,11 @@ CAstProcedure *CParser::subroutineDecl(CAstScope *s)
       formalParam(proScope, symproc);
     Consume(tColon);
     CAstType *_retType = type(s);
+    //type should not array or ptr
+    if(_retType->GetType()->IsArray() || _retType->GetType()->IsPointer())
+      SetError(t, "func type cannot be array or pointer.");
+
+
     CSymProc *symfunc =  new CSymProc(t.GetValue(), _retType->GetType());
     const CDataInitializer  * di = symproc->GetData();
     symfunc->SetData(di);
@@ -250,7 +257,9 @@ CAstProcedure *CParser::subroutineDecl(CAstScope *s)
   }
   Consume(tSemicolon);
 
-
+  string msg;
+  if (!proScope->TypeCheck(&t, &msg))
+    SetError(t, msg); 
   return proScope;
 }
 
@@ -289,34 +298,31 @@ void CParser::varDeclaration(CAstScope *s)
   //FIRST(varDecl) = {tIdent}.
   //
 
-if(PeekType() == tVarDecl){
-  bool rear_flag = 1;
-  Consume(tVarDecl);
-  varDecl(s);
-  Consume(tSemicolon);
-
-  while(rear_flag){
-
-    switch(PeekType()){
-      case tBegin:
-      case tProcedure:
-      case tFunction:
-        rear_flag = 0;
-        break;
-      case tIdent:
-        rear_flag = 1;
-        break;
-      default:
-        //unexpected token, probably dying after this mehtod
-        break;
-    }
-
-    if(rear_flag == 0)
-      break;
+  if(PeekType() == tVarDecl){
+    bool rear_flag = 1;
+    Consume(tVarDecl);
     varDecl(s);
     Consume(tSemicolon);
+
+    while(rear_flag){
+
+      switch(PeekType()){
+        case tBegin:
+        case tProcedure:
+        case tFunction:
+          rear_flag = 0;
+          break;
+        case tIdent:
+          rear_flag = 1;
+          break;
+      }
+
+      if(rear_flag == 0)
+        break;
+      varDecl(s);
+      Consume(tSemicolon);
+    }
   }
-}
 }
 
 
@@ -439,7 +445,7 @@ CAstType * CParser::type(CAstScope *s)
   for (int i = v.size() -1 ; i >= 0 ; i --){
     _type = new CArrayType(v[i], _type);
   }
-
+  
   return new CAstType(t, _type);
 }
 
@@ -519,7 +525,12 @@ CAstStatAssign* CParser::assignment(CAstScope *s, CToken *_t )
   Consume(tAssign, &t);
 
   CAstExpression *rhs = expression(s);
-  return new CAstStatAssign(t, lhs, rhs);
+  
+  CAstStatAssign *retVal = new CAstStatAssign(t, lhs, rhs);
+  string msg;
+  if (!retVal->TypeCheck(&t, &msg))
+    SetError(t, msg);
+  return retVal;
 }
 
 CAstStatCall* CParser::subroutineCall(CAstScope *s, CToken *_t)
@@ -566,7 +577,13 @@ CAstStatCall* CParser::subroutineCall(CAstScope *s, CToken *_t)
   }
   Consume(tRParens);
 
-  return new CAstStatCall(t, funCall);
+  
+  CAstStatCall *retVal = new CAstStatCall(t, funCall);
+  string msg;
+  if (!retVal->TypeCheck(&t, &msg))
+    SetError(t, msg);
+  return retVal;
+
 }
 
 
@@ -593,7 +610,13 @@ CAstStatIf * CParser::ifStatement(CAstScope *s)
   }
   Consume(tEnd);            
 
-  return new CAstStatIf(t, condition, ifBody, elseBody);
+  
+  CAstStatIf *retVal = new CAstStatIf(t, condition, ifBody, elseBody);
+  string msg;
+  if (!retVal->TypeCheck(&t, &msg))
+    SetError(t, msg);
+  return retVal;
+
 }
 
 CAstStatWhile * CParser::whileStatement(CAstScope *s)
@@ -613,7 +636,12 @@ CAstStatWhile * CParser::whileStatement(CAstScope *s)
   CAstStatement *whileBody = statSequence(s);
   Consume(tEnd);
 
-  return new CAstStatWhile(t, condition, whileBody);
+  CAstStatWhile *retVal =  new CAstStatWhile(t, condition, whileBody);
+  string msg;
+  if (!retVal->TypeCheck(&t, &msg))
+    SetError(t, msg);
+  return retVal;
+
 }
 
 CAstStatReturn *CParser::returnStatement(CAstScope *s)
@@ -637,7 +665,12 @@ CAstStatReturn *CParser::returnStatement(CAstScope *s)
       break;
   }
 
-  return new CAstStatReturn(t, s, retValue);
+  CAstStatReturn *retVal = new CAstStatReturn(t, s, retValue);
+  string msg;
+  if (!retVal->TypeCheck(&t, &msg))
+    SetError(t, msg);
+  return retVal;
+
 }
 
 
@@ -655,9 +688,7 @@ CAstExpression* CParser::expression(CAstScope* s)
 
   if (_scanner->Peek().GetType() == tRelOp) {
     Consume(tRelOp, &t);
-    trace();
     right = simpleexpr(s);
-    trace();
     if (t.GetValue() == "=")       relop = opEqual;
     else if (t.GetValue() == "#")  relop = opNotEqual;
     else if (t.GetValue() == "<")  relop = opLessThan;
@@ -666,7 +697,11 @@ CAstExpression* CParser::expression(CAstScope* s)
     else if (t.GetValue() == ">=")  relop = opBiggerEqual;
     else SetError(t, "invalid relation.");
 
-    return new CAstBinaryOp(t, relop, left, right);
+    CAstBinaryOp *retVal = new CAstBinaryOp(t, relop, left, right);
+    string msg;
+    if (!retVal->TypeCheck(&t, &msg))
+      SetError(t, msg);
+    return retVal;
   } else {
     return left;
   }
@@ -707,7 +742,9 @@ CAstExpression* CParser::simpleexpr(CAstScope *s)
     n = new CAstBinaryOp(t, op, l, r);
   }
 
-
+  string msg;
+  if (n!=NULL && !n->TypeCheck(&t, &msg))
+    SetError(t, msg);
   return n;
 }
 
@@ -740,7 +777,7 @@ CAstExpression* CParser::term(CAstScope *s)
 
     tt = _scanner->Peek().GetType();
   }
-
+  
   return n;
 }
 
@@ -802,6 +839,9 @@ CAstExpression* CParser::factor(CAstScope *s)
       SetError(_scanner->Peek(), "factor expected.");
       break;
   }
+  string msg;
+  if (n!=NULL && !n->TypeCheck(&t, &msg))
+    SetError(t, msg);
 
   return n;
 }
@@ -840,12 +880,20 @@ CAstDesignator* CParser::qualident(CAstScope *s, CToken *_t)
 
   if(dim!=0){
     tarray->IndicesComplete();
+    string msg;
+    if (!tarray->TypeCheck(&t, &msg))
+      SetError(t, msg);
+
     return tarray;
   }
   else{
     delete tarray;
-    return new CAstDesignator(t, 
-                              s->GetSymbolTable()->FindSymbol(t.GetValue()));
+    CAstDesignator *retVal = new CAstDesignator(t, s->GetSymbolTable()->FindSymbol(t.GetValue()));
+    string msg;
+    if (!retVal->TypeCheck(&t, &msg))
+      SetError(t, msg);
+    return retVal;
+ 
   }
 
 }

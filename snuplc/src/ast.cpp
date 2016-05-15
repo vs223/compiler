@@ -168,8 +168,10 @@ bool CAstScope::TypeCheck(CToken *t, string *msg) const
   if(GetStatementSequence()!=NULL && !GetStatementSequence()->TypeSeqCheck(t,msg))
     return false;
   for(int i = 0; i < GetNumChildren(); i++){
-    if(!GetChild(i)->TypeCheck(t,msg))
+    if(!GetChild(i)->TypeCheck(t,msg)){
+      *msg += "\nCAstScope child type check fail. "; 
       return false;
+    }
   }
   return true;
 }
@@ -395,10 +397,24 @@ CAstExpression* CAstStatAssign::GetRHS(void) const
 
 bool CAstStatAssign::TypeCheck(CToken *t, string *msg) const
 {
-  return GetLHS()->TypeCheck(t,msg) &&
-      GetRHS()-> TypeCheck(t,msg) &&
-      GetLHS()->GetType()->IsScalar() &&
-      GetLHS()->GetType() -> Match ( GetRHS()->GetType());
+  *msg += "\n Assignment typecheck : ";
+  if(!GetLHS()->TypeCheck(t,msg)){
+   *msg += "lhs typecheck";
+   return false;
+  }
+  if(!GetRHS()-> TypeCheck(t,msg)){
+   *msg += "rhs typecheck";
+    return false;
+  } 
+  if(!GetLHS()->GetType()->IsScalar()){
+    *msg += "lhs is not scalar";
+    return false;
+  }
+  if(!GetLHS()->GetType() -> Match ( GetRHS()->GetType())){
+    *msg+= " lhs' type != rhs'";
+    return false;
+  }
+  return true;
 }
 
 const CType* CAstStatAssign::GetType(void) const
@@ -1228,7 +1244,16 @@ const CSymbol* CAstDesignator::GetSymbol(void) const
 
 bool CAstDesignator::TypeCheck(CToken *t, string *msg) const
 {
-  return (GetType()!=NULL);
+
+  if(GetType()==NULL){
+      if(t!=NULL)
+        *t =GetToken();
+      if(msg!=NULL){
+        *msg = "Designator fail : NULL";
+      }
+      return false;
+  }
+  return true;
 }
 
 const CType* CAstDesignator::GetType(void) const
@@ -1323,15 +1348,23 @@ bool CAstArrayDesignator::TypeCheck(CToken *t, string *msg) const
   //parameter case 
   if(retVal -> IsPointer())
     retVal = dynamic_cast<const CPointerType*>(retVal)->GetBaseType();
-  if(!retVal -> IsArray())
+  if(!retVal -> IsArray()){
+    *msg = "Array typecheck  this is not array type!";
     return false;
+  }
 
   for(int i = 0 ; i < GetNIndices();i++){
-    if(!GetIndex(i)-> TypeCheck(t, msg))
+    if(!GetIndex(i)-> TypeCheck(t, msg)){
+      *msg="array typecheck : index check error";
       return false;
-    if(!GetIndex(i)-> GetType()-> Match(CTypeManager::Get()->GetInt()))
+    }
+    if(!GetIndex(i)-> GetType()-> Match(CTypeManager::Get()->GetInt())){
+      *msg = "arraytype check : index's type is not int";
       return false;
+    }
+
   }
+  *msg = "Array type check success";
   return true;
 }
 
