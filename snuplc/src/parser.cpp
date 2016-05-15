@@ -355,13 +355,16 @@ void CParser::varDecl(CAstScope *s, CSymProc *p)
   Consume(tColon);
   CAstType * astType = type(s);
   const CType* _type;
+
   if(p!=NULL && astType->GetType()->IsArray()){
     _type = CTypeManager::Get()->GetPointer(astType->GetType());
   }
   else{
     _type = astType->GetType();
   }
+  
   int vsize = tokenBuf.size();
+  
   for(int i = 0; i < vsize; i++){
     if(symtab-> FindSymbol(tokenBuf[i].GetValue(), sLocal)!=NULL){
       SetError(t, "Duplicated definition.");
@@ -374,6 +377,11 @@ void CParser::varDecl(CAstScope *s, CSymProc *p)
     }
     else{
       CSymbol *symbolToAdd = s->CreateVar(tokenBuf[i].GetValue(), _type);
+      while(_type->IsArray()){
+          if(dynamic_cast <const CArrayType *> (_type) ->GetNElem() == CArrayType::OPEN)
+            SetError(t, "var doesn't have explicit dimension");
+          _type = dynamic_cast <const CArrayType *> (_type) -> GetInnerType();
+      }
       if(!symtab->AddSymbol(symbolToAdd))
         SetError(t, "fail to add token to symboltable");
     }
@@ -413,6 +421,9 @@ CAstType * CParser::type(CAstScope *s)
                t.GetValue() + "'");
       break;
   }
+  
+  vector<long long> v;
+
   while(PeekType() == tLBrak){
     CAstConstant *num = NULL;
     Consume(tLBrak);
@@ -420,9 +431,13 @@ CAstType * CParser::type(CAstScope *s)
       num = number();
     Consume(tRBrak);
     if(num == NULL)
-      _type = new CArrayType(CArrayType::OPEN,_type);
+      v.push_back(CArrayType::OPEN);
     else
-      _type = new CArrayType(num->GetValue(),_type);
+      v.push_back(num->GetValue());
+  }
+
+  for (int i = v.size() -1 ; i >= 0 ; i --){
+    _type = new CArrayType(v[i], _type);
   }
 
   return new CAstType(t, _type);
