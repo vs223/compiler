@@ -883,6 +883,15 @@ bool CAstBinaryOp::TypeCheck(CToken *t, string *msg) const
   *t = GetToken();
   // lhs's & rhs's always same
   // not support type conversion
+  if(!GetLeft()->TypeCheck(t,msg)){
+    *msg += "binary op : left operand type check fail\n";
+    return false;
+  }
+  if(!GetRight()->TypeCheck(t,msg)){
+    *msg += "binary op : right operand type check fail\n";
+    return false;
+  }
+
   if(!(GetLeft()->GetType()->Match(GetRight()->GetType()))){
     *msg = "binary op. left's type != right's.";
     return false;
@@ -1527,22 +1536,26 @@ bool CAstConstant::TypeCheck(CToken *t, string *msg) const
   CTypeManager* tm = CTypeManager::Get();
   if (GetType()->Match(tm->GetInt())) {
     if(GetValue() < (int)0x80000000){
-      *msg = "int value < int min";
+      *msg = "int value < int min\n";
       return false;
     }
     if( GetValue() > (int)0x7fffffff){
       cout << GetValue() <<endl;
-      *msg = "int value > int max";  
+      *msg = "int value > int max\n";  
       return false;
     }
   }
   else if (_type->Match(tm->GetChar())){
-    if(GetValue() < 0 || GetValue() > 0xff)
+    if(GetValue() < 0 || GetValue() > 0xff){
+      *msg = "Constant : char value is out of range\n";
       return false;
+    }
   }
   else if (GetType()->Match(tm->GetBool())){
-    if(GetValue() !=0 && GetValue() != 1)
+    if(GetValue() !=0 && GetValue() != 1){
+      *msg = "Constant : bool value is out of range\n";
       return false;
+    }
   }
   else{
     return false;
