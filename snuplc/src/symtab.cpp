@@ -256,6 +256,7 @@ ostream& CSymProc::print(ostream &out, int indent) const
 // CSymtab
 //
 CSymtab::CSymtab(void)
+  : _parent(NULL)
 {
 }
 
@@ -268,10 +269,7 @@ CSymtab::CSymtab(CSymtab *parent)
 CSymtab::~CSymtab(void)
 {
   map<string, CSymbol*>::const_iterator it = _symtab.begin();
-  while (it != _symtab.end()) {
-      if((*it).second != NULL)
-        delete (*it++).second;
-  }
+  while (it != _symtab.end()) delete (*it++).second;
   _symtab.clear();
 }
 
@@ -340,13 +338,13 @@ ostream& CSymtab::print(ostream &out, int indent) const
   return out;
 }
 
-ostream& operator<<(ostream &out, const CSymtab &s)
+ostream& operator<<(ostream &out, const CSymtab &t)
 {
-  return s.print(out);
+  return t.print(out);
 }
 
-ostream& operator<<(ostream &out, const CSymtab *s)
+ostream& operator<<(ostream &out, const CSymtab *t)
 {
-  return s->print(out);
+  return t->print(out);
 }
 
