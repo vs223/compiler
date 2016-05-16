@@ -165,8 +165,11 @@ CAstStatement* CAstScope::GetStatementSequence(void) const
 
 bool CAstScope::TypeCheck(CToken *t, string *msg) const
 {
-  if(GetStatementSequence()!=NULL && !GetStatementSequence()->TypeSeqCheck(t,msg))
+  *t=GetToken();
+  if(GetStatementSequence()!=NULL && !GetStatementSequence()->TypeSeqCheck(t,msg)){
+    *msg += "CAstScope : GetStatementSequence fail.";
     return false;
+  }
   for(int i = 0; i < GetNumChildren(); i++){
     if(!GetChild(i)->TypeCheck(t,msg)){
       *msg += "\nCAstScope child type check fail. "; 
@@ -352,8 +355,11 @@ CAstStatement::~CAstStatement(void)
 
 bool CAstStatement::TypeSeqCheck(CToken *t, string *msg) 
 {
-  if(!TypeCheck(t,msg))
+  *t = GetToken();
+  if(!TypeCheck(t,msg)){
+    *msg = "statement check fail during seqCheck \n";
     return false;
+  }
   if(GetNext()==NULL)
     return true;
   return GetNext()->TypeCheck(t,msg);  
@@ -397,21 +403,20 @@ CAstExpression* CAstStatAssign::GetRHS(void) const
 
 bool CAstStatAssign::TypeCheck(CToken *t, string *msg) const
 {
-  *msg += "\n Assignment typecheck : ";
   if(!GetLHS()->TypeCheck(t,msg)){
-    *msg += "lhs typecheck";
+    *msg += "Assignment typecheck : lhs typecheck\n";
     return false;
   }
   if(!GetRHS()-> TypeCheck(t,msg)){
-    *msg += "rhs typecheck";
+    *msg += "Assignment typecheck : rhs typecheck\n";
     return false;
   } 
   if(!GetLHS()->GetType()->IsScalar()){
-    *msg += "lhs is not scalar";
+    *msg += "Assignment typecheck : lhs is not scalar\n";
     return false;
   }
   if(!GetLHS()->GetType() -> Match ( GetRHS()->GetType())){
-    *msg+= " lhs' type != rhs'";
+    *msg+= "Assignment typecheck : lhs' type != rhs'\n";
     return false;
   }
   return true;
@@ -530,9 +535,17 @@ CAstExpression* CAstStatReturn::GetExpression(void) const
 
 bool CAstStatReturn::TypeCheck(CToken *t, string *msg) const
 {
-  if (GetExpression() != NULL && !GetExpression()->TypeCheck(t,msg))
+  *t = GetToken();
+  if (GetExpression() != NULL && !GetExpression()->TypeCheck(t,msg)){
+    *msg += "CAstStatReturn :\n";
     return false;
-  return  GetScope()->GetType()->Match(GetType());
+  }
+    
+  if(!GetScope()->GetType()->Match(GetType())){
+    *msg += "CAstStatReturn : type match fail\n";
+    return false;
+  }
+  return true;
 }
 
 const CType* CAstStatReturn::GetType(void) const
@@ -614,15 +627,23 @@ CAstStatement* CAstStatIf::GetElseBody(void) const
 
 bool CAstStatIf::TypeCheck(CToken *t, string *msg) const
 {
-
-  if(!GetCondition()->TypeCheck(t,msg))
+  *t=GetToken();
+  if(!GetCondition()->TypeCheck(t,msg)){
+    *msg += "if stat : condition type check fail\n";
     return false;
-  if(!GetCondition()->GetType()->Match(CTypeManager::Get()->GetBool()))
+  }
+  if(!GetCondition()->GetType()->Match(CTypeManager::Get()->GetBool())){
+    *msg += "if stat condition's type is not bool\n";
     return false;
-  if(GetIfBody()!= NULL && !(GetIfBody()->TypeSeqCheck(t,msg)))
+  }
+  if(GetIfBody()!= NULL && !(GetIfBody()->TypeSeqCheck(t,msg))){
+    *msg += "if stat : body type seq check fail";
     return false;
-  if(GetElseBody()!=NULL && (GetElseBody()->TypeSeqCheck(t,msg)))
+  }
+  if(GetElseBody()!=NULL && !(GetElseBody()->TypeSeqCheck(t,msg))){
+    *msg += " if stat : else body type seq check fail";
     return false;
+  }
   return true;
 }
 
@@ -723,12 +744,19 @@ CAstStatement* CAstStatWhile::GetBody(void) const
 
 bool CAstStatWhile::TypeCheck(CToken *t, string *msg) const
 {
-  if (!GetCondition()->TypeCheck(t,msg))
+  *t = GetToken();
+  if (!GetCondition()->TypeCheck(t,msg)){
+    *msg += "while condition type check fail\n";
     return false;
-  if( !GetCondition()->GetType()->Match(CTypeManager::Get()->GetBool()))
+  }
+  if( !GetCondition()->GetType()->Match(CTypeManager::Get()->GetBool())){
+    *msg += "while condition is not bool";
     return false;
-  if( GetBody()!=NULL && !GetBody()->TypeSeqCheck(t,msg))
+  }
+  if( GetBody()!=NULL && !GetBody()->TypeSeqCheck(t,msg)){
+    *msg += "while body type seq check fail\n";
     return false;
+  }
   return true;
 }
 
@@ -852,11 +880,13 @@ CAstExpression* CAstBinaryOp::GetRight(void) const
 bool CAstBinaryOp::TypeCheck(CToken *t, string *msg) const
 {
   CTypeManager *tm = CTypeManager::Get();
-
+  *t = GetToken();
   // lhs's & rhs's always same
   // not support type conversion
-  if(!(GetLeft()->GetType()->Match(GetRight()->GetType())))
+  if(!(GetLeft()->GetType()->Match(GetRight()->GetType()))){
+    *msg = "binary op. left's type != right's.";
     return false;
+  }
 
   switch(GetOperation()){
     case opEqual:
@@ -867,15 +897,18 @@ bool CAstBinaryOp::TypeCheck(CToken *t, string *msg) const
     case opBiggerThan:
     case opLessEqual:
     case opBiggerEqual:
+      *msg = "binary op : relop\n";
       return (GetLeft()->GetType()->Match(tm->GetInt()))
           ||(GetLeft()->GetType()->Match(tm->GetChar()));
     case opAnd:
     case opOr:
+      *msg = "binary op : and || or \n";
       return (GetLeft()->GetType()->Match(tm->GetBool()));
     case opAdd:
     case opSub:
     case opMul:
     case opDiv:
+      *msg = "binary op : +-*/\n";
       return (GetLeft()->GetType()->Match(tm->GetInt()));
   }
 
@@ -971,13 +1004,18 @@ CAstExpression* CAstUnaryOp::GetOperand(void) const
 
 bool CAstUnaryOp::TypeCheck(CToken *t, string *msg) const
 {
-  if(!GetOperand()->TypeCheck(t,msg))
+  *t = GetToken();
+  if(!GetOperand()->TypeCheck(t,msg)){
+    *msg += "unary op fail \n";
     return false;
+  }
   switch(GetOperation()){
     case opNeg:
     case opPos:
+      *msg = "unary op : opPos\n";
       return (GetOperand()->GetType()->Match(CTypeManager::Get()->GetInt()));
     case opNot:
+      *msg = "unary op : opNot\n";
       return (GetOperand()->GetType()->Match(CTypeManager::Get()->GetBool()));
   }
   return false;
@@ -1055,12 +1093,16 @@ CAstExpression* CAstSpecialOp::GetOperand(void) const
 
 bool CAstSpecialOp::TypeCheck(CToken *t, string *msg) const
 {
+  *t = GetToken();
   switch(GetOperation()){
     case opAddress:
+      *msg = "special op : opAddress\n";
       return (_operand->GetType()->IsArray());
     case opDeref:
+      *msg = "Special op : opDref\n";
       return (_operand->GetType()->IsPointer());
     case opCast:
+      *msg = "Special op : opCast\n";
       //not defined
       return false;
   }
@@ -1153,15 +1195,24 @@ CAstExpression* CAstFunctionCall::GetArg(int index) const
 
 bool CAstFunctionCall::TypeCheck(CToken *t, string *msg) const
 {
+  *t = GetToken();
   //check # of parameters
-  if(GetSymbol()->GetNParams()!= GetNArgs())
+  if(GetSymbol()->GetNParams()!= GetNArgs()){
+    *msg += "func call, # of args != # of params\n"; 
     return false;
+  }
+
 
   for(int i = 0; i < GetNArgs(); i++){
-    if(!GetArg(i)->TypeCheck(t,msg))
+    if(!GetArg(i)->TypeCheck(t,msg)){
+      *msg += "function call : arg type check fail \n";
       return false;
-    if(!GetArg(i)->GetType()->Match(GetSymbol()->GetParam(i)->GetDataType()))
+    }
+    if( !GetSymbol()->GetParam(i)->GetDataType()-> Match( GetArg(i)->GetType() )){
+      
+      *msg += "func call : arg's type != param's type\n";
       return false;
+    }
   }
   return true;
 }
@@ -1244,7 +1295,6 @@ const CSymbol* CAstDesignator::GetSymbol(void) const
 
 bool CAstDesignator::TypeCheck(CToken *t, string *msg) const
 {
-
   if(GetType()==NULL){
     if(t!=NULL)
       *t =GetToken();

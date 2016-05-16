@@ -713,7 +713,9 @@ CAstExpression* CParser::simpleexpr(CAstScope *s)
   n = term(s);
 
   if( tt == tPlusMinus){
-    if(t.GetValue() == "-" && n->GetType()->Compare(CTypeManager::Get()->GetInt())&&dynamic_cast<CAstConstant *>(n) !=NULL){
+    if(t.GetValue() == "-" 
+       && CTypeManager::Get()->GetInt()->Compare(n->GetType())
+       && dynamic_cast<CAstConstant *>(n) !=NULL){
       dynamic_cast<CAstConstant *>(n)->SetValue(-(dynamic_cast<CAstConstant*>(n)->GetValue()));
     }
     else
